@@ -215,6 +215,69 @@ def analyze_confusion_matrix(y_test, y_pred, save_path='confusion_matrix.png'):
                 percentage = 100 * count / incorrect
                 print(f"    {predicted_digit}: {count} times ({percentage:.1f}% of errors)")
 
+    # Overall distribution of incorrect guesses
+    print("\n" + "="*60)
+    print("OVERALL DISTRIBUTION OF INCORRECT GUESSES")
+    print("="*60)
+
+    # Calculate total errors
+    total_predictions = cm.sum()
+    total_correct = np.trace(cm)  # Sum of diagonal
+    total_errors = total_predictions - total_correct
+
+    print(f"\nTotal predictions: {total_predictions}")
+    print(f"Correct predictions: {total_correct} ({100*total_correct/total_predictions:.2f}%)")
+    print(f"Incorrect predictions: {total_errors} ({100*total_errors/total_predictions:.2f}%)")
+
+    # Find all misclassification pairs
+    error_pairs = []
+    for true_digit in range(10):
+        for pred_digit in range(10):
+            if true_digit != pred_digit and cm[true_digit, pred_digit] > 0:
+                error_pairs.append((true_digit, pred_digit, cm[true_digit, pred_digit]))
+
+    # Sort by frequency
+    error_pairs.sort(key=lambda x: x[2], reverse=True)
+
+    print(f"\nTop 20 most common misclassification pairs:")
+    print(f"{'Rank':<6}{'True':<6}{'→':<4}{'Pred':<6}{'Count':<8}{'% of all errors':<20}")
+    print("-" * 60)
+
+    for rank, (true_digit, pred_digit, count) in enumerate(error_pairs[:20], 1):
+        percentage = 100 * count / total_errors
+        print(f"{rank:<6}{true_digit:<6}{'→':<4}{pred_digit:<6}{count:<8}{percentage:.2f}%")
+
+    # Distribution by predicted digit (for all errors)
+    print(f"\nWhen the model made errors, what did it predict?")
+    print(f"{'Predicted Digit':<20}{'Count':<10}{'% of all errors':<20}")
+    print("-" * 50)
+
+    for pred_digit in range(10):
+        # Count all misclassifications that resulted in this prediction
+        count = sum(cm[true_digit, pred_digit] for true_digit in range(10) if true_digit != pred_digit)
+        if count > 0:
+            percentage = 100 * count / total_errors
+            print(f"{pred_digit:<20}{count:<10}{percentage:.2f}%")
+
+    # Distribution by true digit (for all errors)
+    print(f"\nWhich true digits were most often misclassified?")
+    print(f"{'True Digit':<20}{'Errors':<10}{'% of all errors':<20}{'Error Rate':<20}")
+    print("-" * 70)
+
+    digit_errors = []
+    for true_digit in range(10):
+        total_actual = cm[true_digit, :].sum()
+        errors = total_actual - cm[true_digit, true_digit]
+        error_rate = 100 * errors / total_actual
+        pct_of_all_errors = 100 * errors / total_errors
+        digit_errors.append((true_digit, errors, pct_of_all_errors, error_rate))
+
+    # Sort by number of errors
+    digit_errors.sort(key=lambda x: x[1], reverse=True)
+
+    for true_digit, errors, pct_of_all, error_rate in digit_errors:
+        print(f"{true_digit:<20}{errors:<10}{pct_of_all:.2f}%{' ':<14}{error_rate:.2f}%")
+
     return cm
 
 def main():
