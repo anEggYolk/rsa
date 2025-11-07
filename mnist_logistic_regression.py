@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, classification_report
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -79,7 +79,7 @@ def train_logistic_regression(X_train, y_train, X_test, y_test):
     print("\nClassification Report:")
     print(classification_report(y_test, y_pred))
 
-    return model
+    return model, y_pred
 
 def visualize_weights(model, save_path='mnist_weights.png'):
     """Visualize the weights for each one-vs-rest classifier."""
@@ -130,6 +130,93 @@ def visualize_weights(model, save_path='mnist_weights.png'):
     print(f"Detailed visualization saved to mnist_weights_detailed.png")
     plt.show()
 
+def analyze_confusion_matrix(y_test, y_pred, save_path='confusion_matrix.png'):
+    """Create and analyze confusion matrix."""
+    print("\nGenerating confusion matrix...")
+
+    # Compute confusion matrix
+    cm = confusion_matrix(y_test, y_pred)
+
+    # Visualize confusion matrix
+    fig, ax = plt.subplots(figsize=(12, 10))
+    im = ax.imshow(cm, cmap='Blues', interpolation='nearest')
+
+    # Add colorbar
+    cbar = plt.colorbar(im, ax=ax)
+    cbar.set_label('Number of predictions', rotation=270, labelpad=20)
+
+    # Set labels
+    ax.set_xlabel('Predicted Label', fontsize=12, fontweight='bold')
+    ax.set_ylabel('True Label', fontsize=12, fontweight='bold')
+    ax.set_title('Confusion Matrix - MNIST Logistic Regression', fontsize=14, fontweight='bold')
+
+    # Set ticks
+    tick_marks = np.arange(10)
+    ax.set_xticks(tick_marks)
+    ax.set_yticks(tick_marks)
+    ax.set_xticklabels(range(10))
+    ax.set_yticklabels(range(10))
+
+    # Add text annotations
+    thresh = cm.max() / 2.
+    for i in range(cm.shape[0]):
+        for j in range(cm.shape[1]):
+            ax.text(j, i, format(cm[i, j], 'd'),
+                   ha="center", va="center",
+                   color="white" if cm[i, j] > thresh else "black",
+                   fontsize=10)
+
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    print(f"Confusion matrix saved to {save_path}")
+    plt.show()
+
+    # Analyze misclassifications for digit 5
+    print("\n" + "="*60)
+    print("MISCLASSIFICATION ANALYSIS FOR DIGIT 5")
+    print("="*60)
+
+    digit = 5
+    total_actual_5s = cm[digit, :].sum()
+    correct_5s = cm[digit, digit]
+    incorrect_5s = total_actual_5s - correct_5s
+
+    print(f"\nTotal actual 5s in test set: {total_actual_5s}")
+    print(f"Correctly predicted as 5: {correct_5s} ({100*correct_5s/total_actual_5s:.1f}%)")
+    print(f"Incorrectly predicted: {incorrect_5s} ({100*incorrect_5s/total_actual_5s:.1f}%)")
+
+    print(f"\nWhen the model got a 5 wrong, it predicted:")
+    for predicted_digit in range(10):
+        if predicted_digit != digit:
+            count = cm[digit, predicted_digit]
+            if count > 0:
+                percentage = 100 * count / incorrect_5s
+                print(f"  Digit {predicted_digit}: {count} times ({percentage:.1f}% of errors)")
+
+    # Analysis for all digits
+    print("\n" + "="*60)
+    print("MISCLASSIFICATION ANALYSIS FOR ALL DIGITS")
+    print("="*60)
+
+    for digit in range(10):
+        total_actual = cm[digit, :].sum()
+        correct = cm[digit, digit]
+        incorrect = total_actual - correct
+
+        if incorrect > 0:
+            print(f"\nDigit {digit}: {incorrect} misclassifications out of {total_actual} ({100*incorrect/total_actual:.1f}%)")
+            print(f"  Most commonly confused with:")
+
+            # Get top 3 confusion targets
+            confusion_counts = [(i, cm[digit, i]) for i in range(10) if i != digit and cm[digit, i] > 0]
+            confusion_counts.sort(key=lambda x: x[1], reverse=True)
+
+            for predicted_digit, count in confusion_counts[:3]:
+                percentage = 100 * count / incorrect
+                print(f"    {predicted_digit}: {count} times ({percentage:.1f}% of errors)")
+
+    return cm
+
 def main():
     """Main execution function."""
     # Load data
@@ -145,7 +232,10 @@ def main():
     print(f"Test set size: {X_test.shape[0]}")
 
     # Train model
-    model = train_logistic_regression(X_train, y_train, X_test, y_test)
+    model, y_pred = train_logistic_regression(X_train, y_train, X_test, y_test)
+
+    # Analyze confusion matrix
+    analyze_confusion_matrix(y_test, y_pred)
 
     # Visualize weights
     visualize_weights(model)
